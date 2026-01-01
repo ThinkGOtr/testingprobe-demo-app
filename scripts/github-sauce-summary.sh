@@ -110,13 +110,18 @@ elif [ "$(jq '[.[] | select(.durum != null and (.durum | ascii_downcase) != "pas
 elif [ -n "$exit_code" ] && [ "$exit_code" != "0" ]; then
   if [ "$jobs" = "[]" ]; then
     durum=error
-    neden="saucectl $exit_code koduyla çıktı ve Sauce job'u oluşmadı (tünel/kimlik/kota; saucectl.log)"
+    if [ -f "$out/saucectl.log" ] && grep -q "concurrent session limit" "$out/saucectl.log"; then
+      neden="Sauce hesabının eşzamanlı oturum sınırı dolu (başka bir koşunun Sauce job'u sürüyordu); job başlatılamadı — uygulama ya da test hatası değil"
+    else
+      neden="saucectl $exit_code koduyla çıktı ve Sauce job'u oluşmadı (tünel/kimlik/kota; saucectl.log)"
+    fi
   else
     durum=failed
   fi
 elif [ -z "$exit_code" ]; then
   durum=error
-  neden="saucectl çalışmadı (önceki adım başarısız; serve.log)"
+  altyapi="$(echo "${TP_SAUCE_ALTYAPI:-}" | xargs)"
+  neden="saucectl çalışmadı (${altyapi:+başarısız altyapı adımı: $altyapi; }önceki adım başarısız; serve.log)"
 elif [ "$jobs" = "[]" ]; then
   durum=error
   neden="Sauce job linki bulunamadı"

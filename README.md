@@ -2,7 +2,7 @@
 
 AI Testing Probe'un **GitHub kipinde** test ettiği demo uygulaması (Bayi Sipariş Portalı;
 tüm veri sentetiktir). Bu depo `testing-probe` ürün deposundan
-`scripts/github-demo-repo-init.sh` ile üretilmiştir (kaynak c1168cb109ba).
+`scripts/github-demo-repo-init.sh` ile üretilmiştir (kaynak 443a6684c31e).
 
 | Yol | İçerik |
 |---|---|
