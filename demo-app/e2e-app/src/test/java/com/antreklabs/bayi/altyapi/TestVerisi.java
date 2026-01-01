@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * Test verisi yalıtımı ve "kırarak doğrula" kancaları (web: tests/fixtures.ts {@code isolationMode},
@@ -19,6 +20,9 @@ import java.time.Duration;
  *       (giriş + {@code DELETE /cart}) boşaltılır; {@code sifir-veri} gruplu testler atlanır.
  *   <li>{@code BREAK_CAMPAIGN=1}: bayi kapsamlı {@code POST /test/break} (kampanya kuralı bozulur),
  *       test sonunda geri alınır. Token gerekir.
+ *   <li>{@code TP_FAULT=<kod>}: aynı uçla bayi kapsamlı ekilmiş hata ({@code {"hata": kod}});
+ *       test sonunda kaldırılır. Token gerekir; {@code BREAK_CAMPAIGN=1} ile birlikteyse geçerli olan
+ *       budur.
  * </ul>
  *
  * <p>Token yalnızca istek başlığında taşınır; günlüğe, rapora ya da kanıt dosyasına yazılmaz.
@@ -41,13 +45,24 @@ public final class TestVerisi {
 
   public TestVerisi(Ayarlar ayarlar) {
     this.ayarlar = ayarlar;
-    this.istemci = HttpClient.newBuilder().connectTimeout(ZAMAN_ASIMI).cookieHandler(new CookieManager()).build();
+    // HTTP/1.1: varsayılan HTTP/2 düz http üzerinde h2c yükseltmesi dener; vite preview vekili
+    // (<BASE_URL>/api) bu isteği yanıtsız bırakıp zaman aşımına düşürür.
+    this.istemci =
+        HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .connectTimeout(ZAMAN_ASIMI)
+            .cookieHandler(new CookieManager())
+            .build();
   }
 
   /** Ortamdan yalıtım kipi; geçersiz birleşimlerde açıklayıcı hata (web: isolationMode). */
   public static Kip kip(Ayarlar ayarlar) {
     if (ayarlar.testToken().isPresent()) {
       return Kip.SIFIRLAMA;
+    }
+    if (ayarlar.ekilmisHata().isPresent()) {
+      throw new IllegalStateException(
+          "TP_FAULT için DEMOAPP_TEST_TOKEN gerekir (ekilmiş hata POST /test/break ile bayi kapsamında açılır).");
     }
     if (ayarlar.kampanyaKirik()) {
       throw new IllegalStateException(
@@ -95,7 +110,41 @@ public final class TestVerisi {
 
   /** Bayi kapsamlı kampanya kırılmasını açar ya da kapatır. */
   public void kampanyayiKir(String kullaniciAdi, boolean acik) {
-    testUcunuCagir("break", "{\"kullanici_adi\":" + jsonDize(kullaniciAdi) + ",\"kampanya\":" + acik + "}");
+    testUcunuCagir("break", kampanyaGovdesi(kullaniciAdi, acik));
+  }
+
+  /**
+   * Bu koşunun bayi kapsamlı kırılması: TP_FAULT (ekilmiş hata) varsa o, yoksa BREAK_CAMPAIGN=1
+   * (kampanya), hiçbiri yoksa boş (web: fixtures.ts {@code dealerBreak}).
+   */
+  public static Optional<Kirilma> kirilma(Ayarlar ayarlar) {
+    Optional<String> kod = ayarlar.ekilmisHata();
+    if (kod.isPresent()) {
+      return Optional.of(new Kirilma(kod.get()));
+    }
+    return ayarlar.kampanyaKirik() ? Optional.of(new Kirilma(null)) : Optional.empty();
+  }
+
+  /** Bayi kapsamlı kırılma: {@code hataKodu} doluysa ekilmiş hata, boşsa kampanya kırılması. */
+  public record Kirilma(String hataKodu) {
+
+    /** {@code POST /test/break} gövdesi: açma ({@code acik}) ya da geri alma. */
+    public String govde(String kullaniciAdi, boolean acik) {
+      return hataKodu == null ? kampanyaGovdesi(kullaniciAdi, acik) : hataGovdesi(kullaniciAdi, acik ? hataKodu : null);
+    }
+  }
+
+  static String kampanyaGovdesi(String kullaniciAdi, boolean acik) {
+    return "{\"kullanici_adi\":" + jsonDize(kullaniciAdi) + ",\"kampanya\":" + acik + "}";
+  }
+
+  static String hataGovdesi(String kullaniciAdi, String kod) {
+    return "{\"kullanici_adi\":" + jsonDize(kullaniciAdi) + ",\"hata\":" + (kod == null ? "null" : jsonDize(kod)) + "}";
+  }
+
+  /** Bu koşunun kırılmasını bayi için açar ya da geri alır. */
+  public void kir(Kirilma kirilma, String kullaniciAdi, boolean acik) {
+    testUcunuCagir("break", kirilma.govde(kullaniciAdi, acik));
   }
 
   private void testUcunuCagir(String yol, String govde) {
