@@ -42,7 +42,53 @@ export const DEALERS: readonly Dealer[] = [
 /** Doğrulama ajanının (playwright-mcp) bayisi; e2e testleri bu bayiyi kullanamaz ve sıfırlamaz. */
 export const AGENT_DEALER = "bayi3";
 
-/** Testin bayisi: `dealerUsername` verilmişse o, yoksa paralel işçinin bayisi. */
+/**
+ * Koşu hesabı başına parola: test-runner `TP_RUN_DEALER_PASSWORDS` = JSON {"<kullanıcı>": "<parola>"}
+ * verir (AI Probe › Test kullanıcıları; yalnız parolası girilen hesaplar). Değişken yoksa {}.
+ * Bozuk değer açık hatayla durur (değer iletiye yazılmaz).
+ */
+export function runPasswords(raw: string | undefined = process.env.TP_RUN_DEALER_PASSWORDS): Record<string, string> {
+  if (!raw || !raw.trim()) return {};
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    throw new Error("TP_RUN_DEALER_PASSWORDS geçerli JSON değil");
+  }
+  if (typeof v !== "object" || v === null || Array.isArray(v)) {
+    throw new Error("TP_RUN_DEALER_PASSWORDS bir JSON nesnesi olmalı");
+  }
+  const out: Record<string, string> = {};
+  for (const [user, pw] of Object.entries(v)) if (typeof pw === "string" && pw) out[user] = pw;
+  return out;
+}
+
+/** Bayinin bu koşudaki parolası: koşu ortamında girilmişse o, yoksa seed (ortak) parolası. */
+export function withRunPassword(dealer: Dealer, passwords: Record<string, string> = runPasswords()): Dealer {
+  const pw = passwords[dealer.username];
+  return pw ? { ...dealer, password: pw } : dealer;
+}
+
+/** Koşu hesabı parolasının ortam adı (core `render.kosu_parola_adi`, toolchain `kosu_parola_env` ile aynı). */
+export function runPasswordEnvName(username: string): string | undefined {
+  const name = `TP_TESTVERI_KOSU_${username.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+  return /^TP_TESTVERI_[A-Z0-9_]{1,64}$/.test(name) ? name : undefined;
+}
+
+/**
+ * Üretilen testler seed parolasıyla girişte parolayı `process.env.TP_TESTVERI_KOSU_<KULLANICI>`'dan
+ * okur. Runner yalnız parolası girilen hesapları verir; verilmeyen her e2e bayisi için bu koşudaki
+ * parola (koşu ortamı → seed) burada yazılır (geriye uyum: koşu ortamı yoksa case'teki seed parolası).
+ */
+export function setRunPasswordEnv(env: Record<string, string | undefined> = process.env): void {
+  for (const d of DEALERS) {
+    const name = runPasswordEnvName(d.username);
+    if (name && !env[name]) env[name] = withRunPassword(d).password;
+  }
+}
+setRunPasswordEnv();
+
+/** Testin bayisi: `dealerUsername` verilmişse o, yoksa paralel işçinin bayisi (parola koşu ortamından). */
 export function pickDealer(dealerUsername: string | undefined, parallelIndex: number): Dealer {
   if (dealerUsername !== undefined) {
     const pinned = DEALERS.find((d) => d.username === dealerUsername);
@@ -52,7 +98,7 @@ export function pickDealer(dealerUsername: string | undefined, parallelIndex: nu
         `dealerUsername '${dealerUsername}' bir e2e bayisi değil${reserved}; izinli: ${DEALERS.map((d) => d.username).join(", ")}`,
       );
     }
-    return pinned;
+    return withRunPassword(pinned);
   }
   const dealer = DEALERS[parallelIndex];
   if (!dealer) {
@@ -60,7 +106,7 @@ export function pickDealer(dealerUsername: string | undefined, parallelIndex: nu
       `En fazla ${DEALERS.length} paralel işçi desteklenir (bayi kullanıcısı sayısı); --workers değerini düşürün.`,
     );
   }
-  return dealer;
+  return withRunPassword(dealer);
 }
 
 const LOCK_POLL_MS = 25;

@@ -1,5 +1,5 @@
 # CI — AI'sız (Constitution II, TEKNIK-TASARIM §8.5).
-# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak ce876a7149b6).
+# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak 9fa066a227a8).
 # Fark: golden-drift job'u yok (golden kayıtlar ve rules/ ürün deposunda kalır). Elle
 # düzenlemeyin; ürün deposunda değiştirip betiği --push --update ile yeniden çalıştırın.
 #
@@ -617,13 +617,14 @@ jobs:
       - name: Sauce kimliği var mı?
         id: creds
         run: |
-          # Sauce'un koştuğu tetikler: repo değişkeni SAUCE_TETIKLER (virgülle; varsayılan
-          # push,deploy,nightly). PR'da varsayılan olarak atlanır: hesap tek eşzamanlı oturumla
-          # koşuları sıraya sokar ve merge kapısı (zorunlu olmayan) Sauce'u beklemez.
-          tetikler=",${SAUCE_TETIKLER:-push,deploy,nightly},"
+          # Sauce'un koştuğu tetikler: repo değişkeni SAUCE_TETIKLER (virgülle). Varsayılan `sauce`:
+          # Sauce yalnız TP'deki elle Sauce turunda (.github/workflows/sauce-demo.yml) koşar; bu
+          # job hiçbir ci.yml tetiğinde (pr, push, nightly, deploy, manual) Sauce'a çıkmaz (deneme
+          # hesabının dakikası korunur). Eski davranış için değişkene ör. `deploy` eklenir.
+          tetikler=",${SAUCE_TETIKLER:-sauce},"
           if [ "${tetikler#*,"$TP_TRIGGER",}" = "$tetikler" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "reason=Sauce bu tetikte koşmaz ($TP_TRIGGER); SAUCE_TETIKLER=${SAUCE_TETIKLER:-push,deploy,nightly}" >> "$GITHUB_OUTPUT"
+            echo "reason=Sauce bu tetikte koşmaz ($TP_TRIGGER); SAUCE_TETIKLER=${SAUCE_TETIKLER:-sauce}" >> "$GITHUB_OUTPUT"
           elif [ -n "$SAUCE_USERNAME" ] && [ -n "$SAUCE_ACCESS_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
