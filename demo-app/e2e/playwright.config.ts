@@ -46,7 +46,8 @@ export default defineConfig({
     ["list"],
     ["junit", { outputFile: "results/junit.xml" }],
     ["json", { outputFile: "results/results.json" }],
-    ["allure-playwright", { resultsDir: "results/allure-results" }],
+    // Sauce elle turu (.sauce/duman.yml, TP_SAUCE_DUMAN=1): Allure paketi Sauce VM'ine kurulmaz.
+    ...(process.env.TP_SAUCE_DUMAN === "1" ? [] : [["allure-playwright", { resultsDir: "results/allure-results" }] as const]),
     ["html", { outputFolder: "results/html", open: "never" }],
   ],
   use: {
@@ -64,6 +65,11 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    // Microsoft Edge (kurulu kanal) yalnız istenince: Sauce elle turunun "Windows 11 · Edge" satırı
+    // (.sauce/duman.yml, TP_PW_EDGE=1). Yerel/CI koşuları Edge kurulu olmayan runner'da bu projeyi görmez.
+    ...(process.env.TP_PW_EDGE === "1"
+      ? [{ name: "msedge", use: { ...devices["Desktop Edge"], channel: "msedge" } }]
+      : []),
   ],
   webServer: externalServer
     ? undefined

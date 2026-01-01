@@ -27,6 +27,72 @@ public static class Bayiler
     /// <summary>Doğrulama ajanının bayisi; e2e testleri kullanamaz ve sıfırlamaz.</summary>
     public const string AjanBayisi = "bayi3";
 
+    /// <summary>
+    /// Koşu hesabı başına parola: test-runner <c>TP_RUN_DEALER_PASSWORDS</c> = JSON
+    /// <c>{"&lt;kullanıcı&gt;": "&lt;parola&gt;"}</c> verir (AI Probe › Test kullanıcıları; yalnız parolası
+    /// girilen hesaplar). Hesabın parolası yoksa seed (ortak) parolası kullanılır.
+    /// </summary>
+    public const string KosuParolalariEnv = "TP_RUN_DEALER_PASSWORDS";
+
+    /// <summary><c>TP_RUN_DEALER_PASSWORDS</c> değerini çözer (boş/null = boş). Bozuk değer açık hatayla
+    /// durur (değer iletiye yazılmaz); boş ve metin olmayan parolalar atlanır.</summary>
+    public static IReadOnlyDictionary<string, string> KosuParolalari(string? ham)
+    {
+        var sonuc = new Dictionary<string, string>();
+        if (string.IsNullOrWhiteSpace(ham))
+        {
+            return sonuc;
+        }
+        System.Text.Json.JsonDocument belge;
+        try
+        {
+            belge = System.Text.Json.JsonDocument.Parse(ham);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            throw new ArgumentException($"{KosuParolalariEnv} geçerli JSON değil");
+        }
+        using (belge)
+        {
+            if (belge.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                throw new ArgumentException($"{KosuParolalariEnv} bir JSON nesnesi olmalı");
+            }
+            foreach (var p in belge.RootElement.EnumerateObject())
+            {
+                if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String && p.Value.GetString() is { Length: > 0 } parola)
+                {
+                    sonuc[p.Name] = parola;
+                }
+            }
+        }
+        return sonuc;
+    }
+
+    /// <summary>Bayinin bu koşudaki parolası: koşu ortamında girilmişse o, yoksa seed (ortak) parolası.</summary>
+    public static BayiBilgisi KosuParolasiyla(BayiBilgisi bayi, IReadOnlyDictionary<string, string> parolalar) =>
+        parolalar.TryGetValue(bayi.KullaniciAdi, out var p) ? bayi with { Parola = p } : bayi;
+
+    /// <summary>Koşu hesabı parolasının ortam adı (core <c>render.kosu_parola_adi</c> ile aynı kural); 64'ü aşarsa null.</summary>
+    public static string? KosuParolaAdi(string kullaniciAdi)
+    {
+        var ad = "TP_TESTVERI_KOSU_" + System.Text.RegularExpressions.Regex.Replace(
+            kullaniciAdi.ToUpperInvariant(), "[^A-Z0-9]", "_");
+        return System.Text.RegularExpressions.Regex.IsMatch(ad, "^TP_TESTVERI_[A-Z0-9_]{1,64}$") ? ad : null;
+    }
+
+    /// <summary>
+    /// Üretilen testin <c>Gizli("TP_TESTVERI_KOSU_&lt;KULLANICI&gt;")</c> okuması runner'dan gelmediyse: o e2e
+    /// bayisinin bu koşudaki parolası (koşu ortamı → seed; geriye uyum). Eşleşen bayi yoksa null.
+    /// </summary>
+    public static string? KosuParolasiAdla(string ad) =>
+        E2E.Where(b => KosuParolaAdi(b.KullaniciAdi) == ad)
+            .Select(b => KosuParolasiyla(b).Parola)
+            .FirstOrDefault();
+
+    private static BayiBilgisi KosuParolasiyla(BayiBilgisi bayi) =>
+        KosuParolasiyla(bayi, KosuParolalari(Environment.GetEnvironmentVariable(KosuParolalariEnv)));
+
     /// <summary>Testin bayisi: <paramref name="sabit"/> verilmişse o, yoksa işçi yuvasının bayisi.</summary>
     public static BayiBilgisi Sec(string? sabit, int isciSirasi)
     {
@@ -35,7 +101,7 @@ public static class Bayiler
             var b = E2E.FirstOrDefault(x => x.KullaniciAdi == sabit);
             if (b is not null)
             {
-                return b;
+                return KosuParolasiyla(b);
             }
             var ayrilmis = sabit == AjanBayisi ? " (doğrulama ajanına ayrılmıştır)" : "";
             throw new ArgumentException(
@@ -46,7 +112,7 @@ public static class Bayiler
             throw new ArgumentException(
                 $"En fazla {E2E.Count} paralel işçi desteklenir (bayi kullanıcısı sayısı); işçi sırası {isciSirasi}");
         }
-        return E2E[isciSirasi];
+        return KosuParolasiyla(E2E[isciSirasi]);
     }
 
     /// <summary>Test sınıfının bayisi: <see cref="BayiAttribute"/> (kalıtılmış dahil), yoksa işçi bayisi.</summary>
