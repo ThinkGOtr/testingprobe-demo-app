@@ -56,6 +56,11 @@ describe("sauce-demo.yml: yalnız elle tur", () => {
     assert.ok(!/curl[^\n]*-u /.test(wf), "curl -u kullanılmaz");
     assert.match(wf, /--netrc-file \/dev\/stdin/);
     assert.equal((wf.match(/for s in "\$\{DEMOAPP_TEST_TOKEN:-\}" "\$\{SAUCE_ACCESS_KEY:-\}"/g) ?? []).length, 2);
+    // Kısaltılmış değer (yetenek dökümü) için önek maskesi de var; kimlik yeteneklere konmaz (SauceLabs.java).
+    assert.equal((wf.match(/o="\$\{s:0:12\}"/g) ?? []).length, 2);
+    const sauceJava = readFileSync(join(REPO_ROOT, "demo-app", "e2e-app", "src", "test", "java", "com", "antreklabs", "bayi", "altyapi", "SauceLabs.java"), "utf8");
+    assert.ok(!/put\("accessKey"|put\("username"/.test(sauceJava), "kimlik sauce:options'a konmaz");
+    assert.match(wf, /name: Appium sürümü \(Sauce önerisi\)/);
   });
 
   it("ci.yml Sauce job'u varsayılan olarak hiçbir ci tetiğinde koşmaz", () => {
@@ -67,6 +72,8 @@ describe("sauce-demo.yml: yalnız elle tur", () => {
     const adlar = [...duman.matchAll(/- name: "([^"]+)"/g)].map((m) => m[1]);
     assert.deepEqual(adlar, ["Windows-11-Chromium", "Windows-11-Edge"]);
     assert.match(duman, /TP_PW_EDGE: "1"[\s\S]*project: msedge/);
+    // Satırlar aynı runner uygulamasını ve bayiyi paylaşır: eşzamanlı koşu veri çakışması yapar.
+    assert.match(duman, /\n {2}concurrency: 1\n/);
     for (const a of adlar) assert.match(wf, new RegExp(`--suite ${a}`));
   });
 });
@@ -155,5 +162,30 @@ describe("github-sauce-tur-ozeti.py", () => {
     const s = readJson(join(dir, "s/sauce.json")) as Record<string, unknown>;
     assert.equal(s["durum"], "atlandi");
     assert.deepEqual(s["platformlar"], []);
+  });
+});
+
+describe("mobil-ios.yml: duman kapsamı ve hızlandırma", () => {
+  const ios = readFileSync(join(REPO_ROOT, ".github", "workflows", "mobil-ios.yml"), "utf8");
+  const icerir = (parca: string): void => assert.ok(ios.includes(parca), parca);
+
+  it("duman yalnız elle tetikte; PR/gece/deploy tam kapsam; koşu adı [istek_id] ile biter", () => {
+    icerir("options: [tam, duman]");
+    icerir("KAPSAM: ${{ (github.event_name == 'workflow_dispatch' && inputs.tetik == 'manual' && inputs.kapsam == 'duman') && 'duman' || 'tam' }}");
+    icerir('if [ "$KAPSAM" = "duman" ]; then kapsam=("-Dtest=$DUMAN_TESTLER"); fi');
+    icerir("format('mobil-ios {0}{2} [{1}]'");
+  });
+
+  it("WDA önbellek anahtarı Xcode + xcuitest + WDA + iOS çalışma zamanı; ıskada derleme", () => {
+    icerir("anahtar=wda-v1-${xc}-xcuitest${surucu}-wda${wda}-ios${rt_ver}-${RUNNER_ARCH}");
+    icerir("xcodebuild build-for-testing");
+    icerir('"appium:usePrebuiltWDA": true, "appium:derivedDataPath": $dd');
+    icerir('WDA_DERIVED_DATA="$WDA_DD"');
+  });
+
+  it("paralel hazırlıkta her arka plan işinin çıkış kodu beklenir", () => {
+    for (const p of ["p_sim=$!", "p_demo=$!", "p_wda=$!"]) icerir(p);
+    icerir('if wait "$pid"; then');
+    icerir("::error::Hazırlık düştü");
   });
 });
