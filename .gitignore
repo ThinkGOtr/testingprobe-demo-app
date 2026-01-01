@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+dist/
+test-results/
+playwright-report/
+blob-report/
+results/
+demo-app/results/
+demo-app/e2e/results/
+*.db
+*.sqlite
