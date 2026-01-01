@@ -38,7 +38,9 @@ public final class Ayarlar {
           Map.entry("kanit.dizini", "KANIT_DIZINI"),
           Map.entry("kimlik.android", "KIMLIK_ANDROID"),
           Map.entry("kimlik.ios", "KIMLIK_IOS"),
-          Map.entry("kimlik.windows", "KIMLIK_WINDOWS"));
+          Map.entry("kimlik.windows", "KIMLIK_WINDOWS"),
+          Map.entry("wda.derived.data", "WDA_DERIVED_DATA"),
+          Map.entry("ios.headless", "IOS_HEADLESS"));
 
   /** Ekilmiş hata kodunun biçimi (web: fixtures.ts FAULT_PATTERN; toolchain `fault`). */
   static final Pattern HATA_KODU = Pattern.compile("^[a-z0-9_]{1,40}$");
@@ -149,6 +151,22 @@ public final class Ayarlar {
   /** Fiziksel cihaz ya da belirli simülatör UDID'i. */
   public Optional<String> udid() {
     return deger("device.udid");
+  }
+
+  /**
+   * iOS: önceden derlenmiş WebDriverAgent'ın türetilmiş veri dizini (xcodebuild build-for-testing
+   * {@code -derivedDataPath}). Verilirse oturum WDA'yı yeniden derlemez ({@code usePrebuiltWDA}).
+   */
+  public Optional<String> wdaTuretilmisVeri() {
+    return deger("wda.derived.data");
+  }
+
+  /**
+   * iOS: simülatör arayüzü (Simulator/DeviceHub uygulaması) açılmaz ({@code isHeadless}). CI'da
+   * ekransız runner'da her oturumun ilk açılışında ~3 dk sürüyordu; yerelde varsayılan kapalı.
+   */
+  public boolean iosEkransiz() {
+    return "1".equals(deger("ios.headless", ""));
   }
 
   /** Platform sürümü (iOS simülatör seçimi için yararlı). */

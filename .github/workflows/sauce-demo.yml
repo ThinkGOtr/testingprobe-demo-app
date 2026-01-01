@@ -125,12 +125,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # Anahtar derlemeden önce bir kez (post adımında hashFiles node_modules'la 120 sn'yi aşıyordu).
+      - name: APK önbellek anahtarı
+        id: anahtar
+        run: echo "k=sauce-apk-v1-${{ hashFiles('demo-app/mobile/**') }}" >> "$GITHUB_OUTPUT"
+
       - name: APK önbelleği
         id: onbellek
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: demo-app/mobile/build/bayi-siparis.apk
-          key: sauce-apk-v1-${{ hashFiles('demo-app/mobile/**') }}-${{ env.MOBIL_API_URL }}
+          key: ${{ steps.anahtar.outputs.k }}-${{ env.MOBIL_API_URL }}
 
       - name: Java kurulumu
         if: steps.onbellek.outputs.cache-hit != 'true'
@@ -180,12 +185,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: .app önbellek anahtarı
+        id: anahtar
+        run: echo "k=sauce-ios-v1-${{ hashFiles('demo-app/mobile/**') }}" >> "$GITHUB_OUTPUT"
+
       - name: .app önbelleği
         id: onbellek
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: demo-app/mobile/build/BayiSiparis-sim.zip
-          key: sauce-ios-v1-${{ hashFiles('demo-app/mobile/**') }}-${{ env.MOBIL_API_URL }}
+          key: ${{ steps.anahtar.outputs.k }}-${{ env.MOBIL_API_URL }}
 
       - name: Xcode seçimi
         if: steps.onbellek.outputs.cache-hit != 'true'
@@ -367,6 +376,11 @@ jobs:
             { grep -rlF -- "$s" tp-sauce || true; } | while read -r f; do
               python3 -c 'import sys,pathlib;p=pathlib.Path(sys.argv[1]);p.write_text(p.read_text(errors="replace").replace(sys.argv[2],"***"))' "$f" "$s"
             done
+            # Kısaltılmış değer (ör. yetenek dökümündeki "abcd-…") tam değer maskesinden kaçar: önek de silinir.
+            o="${s:0:12}"
+            { grep -rlF -- "$o" tp-sauce || true; } | while read -r f; do
+              python3 -c 'import sys,pathlib;p=pathlib.Path(sys.argv[1]);p.write_text(p.read_text(errors="replace").replace(sys.argv[2],"***"))' "$f" "$o"
+            done
           done
 
       - name: Platform artefaktı
@@ -507,6 +521,25 @@ jobs:
           echo "app=storage:$id" >> "$GITHUB_OUTPUT"
           echo "Sauce storage: $AD → $id"
 
+      # Sauce'un bu cihaz + sürüm için önerdiği Appium sürümü (herkese açık platform listesi; kimliksiz).
+      # "latest" gibi takma adlar reddediliyor ("Invalid version format used").
+      - name: Appium sürümü (Sauce önerisi)
+        if: steps.yukle.outcome == 'success'
+        env:
+          CIHAZ: ${{ matrix.cihaz }}
+          SURUM: ${{ matrix.surum }}
+        run: |
+          set -euo pipefail
+          v="$(curl -fsS -m 30 "https://api.$SAUCE_REGION.saucelabs.com/rest/v1/info/platforms/appium" \
+            | jq -r --arg d "$CIHAZ" --arg s "$SURUM" \
+              '[.[] | select(.long_name == $d and .short_version == $s) | .recommended_backend_version][0] // empty')" || v=""
+          if [[ "$v" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "SAUCE_APPIUM_VERSION=$v" >> "$GITHUB_ENV"
+            echo "Appium (Sauce önerisi): $v · $CIHAZ · $SURUM"
+          else
+            echo "::warning::Sauce platform listesinde '$CIHAZ' / '$SURUM' bulunamadı; Appium sürümü verilmiyor"
+          fi
+
       - name: Sauce'ta Appium testleri
         if: steps.yukle.outcome == 'success'
         id: tests
@@ -550,6 +583,11 @@ jobs:
             [ -n "$s" ] || continue
             { grep -rlF -- "$s" tp-sauce || true; } | while read -r f; do
               python3 -c 'import sys,pathlib;p=pathlib.Path(sys.argv[1]);p.write_text(p.read_text(errors="replace").replace(sys.argv[2],"***"))' "$f" "$s"
+            done
+            # Kısaltılmış değer (ör. yetenek dökümündeki "abcd-…") tam değer maskesinden kaçar: önek de silinir.
+            o="${s:0:12}"
+            { grep -rlF -- "$o" tp-sauce || true; } | while read -r f; do
+              python3 -c 'import sys,pathlib;p=pathlib.Path(sys.argv[1]);p.write_text(p.read_text(errors="replace").replace(sys.argv[2],"***"))' "$f" "$o"
             done
           done
 
