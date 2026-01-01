@@ -92,7 +92,7 @@ export function CatalogPage({ onCartChange }: Props) {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  data-testid="cart-add"
+                  data-testid="add-to-cart"
                   onClick={() => add(p)}
                   disabled={busy === p.kod}
                 >
