@@ -97,11 +97,14 @@ Raporlama hatası testi ya da koşuyu düşürmez: uyarı günlüğe yazılır, 
 | `bekleme.ms` | `BEKLEME_MS` | `10000` | eylem/beklenti üst sınırı |
 | `bayi.kilit.ms` | `BAYI_KILIT_MS` | `40000` | bayi kilidi bekleme |
 | `kimlik.android` / `.ios` / `.windows` | `KIMLIK_*` | plan §2.2 | `id` \| `erisilebilirlik` \| `uiautomator` (yalnız Android) |
+| `wda.derived.data` | `WDA_DERIVED_DATA` | — | iOS: hazır WebDriverAgent türetilmiş veri dizini (`usePrebuiltWDA`; CI önbelleği) |
+| `ios.headless` | `IOS_HEADLESS` | — | iOS: `1` ise simülatör arayüzü açılmaz (`isHeadless`; CI) |
 
 **Sauce Labs sanal cihazı** (elle Sauce turu, `.github/workflows/sauce-demo.yml`): `APPIUM_URL`
 `https://ondemand.<bölge>.saucelabs.com:443/wd/hub` olunca `altyapi/SauceLabs.java` oturuma
-`sauce:options` ekler — kimlik yalnız ortamdan (`SAUCE_USERNAME`, `SAUCE_ACCESS_KEY`; günlüğe yazılmaz),
-`SAUCE_TUNNEL_NAME`, `SAUCE_BUILD`, `SAUCE_APPIUM_VERSION` (varsayılan `latest`); iş adı
+`sauce:options` ekler (`SAUCE_TUNNEL_NAME`, `SAUCE_BUILD`, `SAUCE_APPIUM_VERSION` — yoksa gönderilmez);
+kimlik (`SAUCE_USERNAME`, `SAUCE_ACCESS_KEY`) yalnız ortamdan okunur ve yeteneklere KONMAZ, HTTP Basic
+başlığıyla gider (oturum hatası yetenekleri kısaltılmış değerle günlüğe yazar, maske tanımaz); iş adı
 `Sınıf.metot`. Test bitince iş sonucu (`sauce:job-result`) yazılır ve oturum kimliği
 `SAUCE_OTURUM_DOSYASI`'na (JSON satırı) eklenir. Uygulama `APP_PATH=storage:<id>`, cihaz
 `DEVICE_NAME` + `PLATFORM_VERSION`.
