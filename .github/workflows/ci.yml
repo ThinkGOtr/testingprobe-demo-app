@@ -1,5 +1,5 @@
 # CI — AI'sız (Constitution II, TEKNIK-TASARIM §8.5).
-# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak e33372812530).
+# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak f7a4052e67cc).
 # Fark: golden-drift job'u yok (golden kayıtlar ve rules/ ürün deposunda kalır). Elle
 # düzenlemeyin; ürün deposunda değiştirip betiği --push --update ile yeniden çalıştırın.
 #
