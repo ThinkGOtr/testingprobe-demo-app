@@ -1,5 +1,5 @@
 # CI — AI'sız (Constitution II, TEKNIK-TASARIM §8.5).
-# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak 7c00200966e6).
+# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak 4b72b11b7002).
 # Fark: golden-drift job'u yok (golden kayıtlar ve rules/ ürün deposunda kalır). Elle
 # düzenlemeyin; ürün deposunda değiştirip betiği --push --update ile yeniden çalıştırın.
 #
@@ -674,7 +674,8 @@ jobs:
         working-directory: demo-app
         env:
           TUNNEL: ${{ steps.region.outputs.tunnel }}
-          BUILD: ${{ github.repository }}#${{ github.run_number }} (${{ needs.changes.outputs.trigger }})
+          # Sauce adlarında yalnız A-Z a-z 0-9 - _ kabul edilir
+          BUILD: ${{ github.event.repository.name }}-${{ github.run_number }}-${{ needs.changes.outputs.trigger }}
         run: |
           set -euo pipefail
           rc=0
