@@ -1,5 +1,5 @@
 # CI — AI'sız (Constitution II, TEKNIK-TASARIM §8.5).
-# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak e6380f703cc2).
+# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak 7c00200966e6).
 # Fark: golden-drift job'u yok (golden kayıtlar ve rules/ ürün deposunda kalır). Elle
 # düzenlemeyin; ürün deposunda değiştirip betiği --push --update ile yeniden çalıştırın.
 #
@@ -639,10 +639,9 @@ jobs:
         if: steps.creds.outputs.enabled == 'true'
         id: region
         run: |
+          # Sauce Connect v5 de saucectl ile aynı bölge adlarını ister (us-west-1, eu-central-1, us-east-4).
           case "$SAUCE_REGION" in
-            us-west-1)    sc=us-west ;;
-            eu-central-1) sc=eu-central ;;
-            us-east-4)    sc=us-east ;;
+            us-west-1|eu-central-1|us-east-4) sc="$SAUCE_REGION" ;;
             *) echo "::error::Desteklenmeyen SAUCE_REGION: $SAUCE_REGION"; exit 1 ;;
           esac
           echo "sc=$sc" >> "$GITHUB_OUTPUT"
