@@ -1,5 +1,5 @@
 # CI — AI'sız (Constitution II, TEKNIK-TASARIM §8.5).
-# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak c1fce311469c).
+# Bu kopya testing-probe deposundan scripts/github-demo-repo-init.sh ile üretildi (kaynak c1168cb109ba).
 # Fark: golden-drift job'u yok (golden kayıtlar ve rules/ ürün deposunda kalır). Elle
 # düzenlemeyin; ürün deposunda değiştirip betiği --push --update ile yeniden çalıştırın.
 #
@@ -567,6 +567,7 @@ jobs:
     env:
       SAUCE_USERNAME: ${{ secrets.SAUCE_USERNAME }}
       SAUCE_ACCESS_KEY: ${{ secrets.SAUCE_ACCESS_KEY }}
+      SAUCE_TETIKLER: ${{ vars.SAUCE_TETIKLER }}
       # saucectl bölge adı: us-west-1 | eu-central-1 | us-east-4 (repo değişkeni SAUCE_REGION)
       SAUCE_REGION: ${{ vars.SAUCE_REGION || 'us-west-1' }}
       SAUCECTL_VERSION: v0.216.4
@@ -580,11 +581,13 @@ jobs:
       - name: Sauce kimliği var mı?
         id: creds
         run: |
-          # PR koşularında Sauce atlanır: hesap tek eşzamanlı oturumla PR'ları sıraya sokar ve merge
-          # kapısı (zorunlu olmayan) Sauce'u beklemez. push / deploy / nightly'de koşar.
-          if [ "$TP_TRIGGER" = "pr" ]; then
+          # Sauce'un koştuğu tetikler: repo değişkeni SAUCE_TETIKLER (virgülle; varsayılan
+          # push,deploy,nightly). PR'da varsayılan olarak atlanır: hesap tek eşzamanlı oturumla
+          # koşuları sıraya sokar ve merge kapısı (zorunlu olmayan) Sauce'u beklemez.
+          tetikler=",${SAUCE_TETIKLER:-push,deploy,nightly},"
+          if [ "${tetikler#*,"$TP_TRIGGER",}" = "$tetikler" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "reason=PR koşusu: Sauce yalnızca push, deploy ve gece koşusunda çalışır" >> "$GITHUB_OUTPUT"
+            echo "reason=Sauce bu tetikte koşmaz ($TP_TRIGGER); SAUCE_TETIKLER=${SAUCE_TETIKLER:-push,deploy,nightly}" >> "$GITHUB_OUTPUT"
           elif [ -n "$SAUCE_USERNAME" ] && [ -n "$SAUCE_ACCESS_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
