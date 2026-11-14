@@ -42,8 +42,39 @@ DEVICE_UDID="$(cat ../../var/cihaz/ios.udid)" \
 ```
 
 `run-app-checks.sh`: `test-compile` → birim (`target/birim-raporlari/`) → cihaz koşusu. Sonuçlar
-`target/surefire-reports/TEST-*.xml` (JUnit XML; `core/src/tp_core/features/ci/parse.py`), `target/allure-results/`, başarısız
+`target/surefire-reports/TEST-*.xml` (JUnit XML; `core/src/tp_core/features/ci/parse.py`), `target/allure-results/`,
+`target/extent-report/index.html` (Extent raporu), başarısız
 testin kanıtı `target/kanit/<Sınıf>.<metot>/{ekran.png,sayfa-kaynagi.xml}` (triage okur).
+
+### Raporlar: Allure ve Extent
+
+Her koşu iki okunur rapor kaynağı üretir; ikisi de test kodunda ek çağrı istemez:
+
+- **Allure** — `allure-testng` `target/allure-results/` yazar; HTML raporu test-runner üretir.
+- **Extent (Spark)** — `altyapi/ExtentRaporu` TestNG dinleyicisi (`src/test/resources/META-INF/services/
+  org.testng.ITestNGListener` ile kendiliğinden yüklenir; testng.xml ve `-Dgroups` koşusunda aynı)
+  `target/extent-report/index.html` yazar. Rapor **tek dosyadır ve dış kaynak yüklemez** (css/js/simge
+  yazı tipi gömülü): tarayıcıda doğrudan, ağ olmadan ve portalın sandbox'ında açılır. Başarısız testin
+  kanıt ekran görüntüsü modele ve arşive dosya yolu olarak girer, koşu sonunda rapora gömülür (en çok 50,
+  koşu geneli — önceki tekrarlar dahil; fazlası `../kanit/…` bağlantısı). Ara yazım her 25 testte / 30 sn'de
+  bir; kesintide (SIGTERM) kapanış kancası son durumu yazar. Rapor ve arşiv atomik taşınır: yazım yarıda
+  kalırsa önceki geçerli `index.html` kalır ve yanına `index.uyari.txt` yazılır.
+
+| Özellik | Varsayılan | Not |
+| --- | --- | --- |
+| `extent.rapor.dizini` | `target/extent-report` | boş verilirse (`-Dextent.rapor.dizini=`) rapor üretilmez; birim adımı `target/birim-raporlari/extent-report`'a yazar |
+| `extent.tekrar` | — | tekrarlı koşuda `<i>/<n>` (test-runner verir): test adına `(tekrar 2/3)` eklenir |
+
+Tekrarlar (test-runner'ın `repeat_each` koşuları, `extent.tekrar` `i > 1`) dizindeki `extent.json`
+arşivi üzerinden **tek raporda birleşir**. `extent.tekrar` verilmeyen koşu ve ilk tekrar arşivi siler:
+`clean`'siz yeniden koşuda eski sonuçlar rapora karışmaz.
+
+Test adı `@Test(description)` (yoksa `Sınıf › metot`), altında `Sınıf.metot`; kategoriler TestNG
+gruplarıdır, `tp-case-*` hariç (case kimliği ayrıntıda `Testing Probe case: <uuid>` satırı). Allure:
+`TestTabani` gruplardan etiket ekler — her grup `tag`, Jira anahtarı (`TPD-1`) `story`,
+`tp-case-<uuid>` ayrıca `tp-case=<uuid>` (`altyapi/TestGruplari`). Test JVM'i: pom `argLine` =
+`-Xmx512m -Dfile.encoding=UTF-8`.
+Raporlama hatası testi ya da koşuyu düşürmez: uyarı günlüğe yazılır, o koşuda Extent raporu kapanır.
 
 ## Ayarlar
 
@@ -61,6 +92,7 @@ testin kanıtı `target/kanit/<Sınıf>.<metot>/{ekran.png,sayfa-kaynagi.xml}` (
 | `demo.api.url` | `DEMO_API_URL` | `http://127.0.0.1:8081/api` | `/test/*` kökü. Compose'daki nginx `/api/test/`'i açmaz: orada doğrudan API adresi verin |
 | `demoapp.test.token` | `DEMOAPP_TEST_TOKEN` | — | **Sır.** Yalnızca ortamdan; başlıkta taşınır, rapora/kanıta yazılmaz |
 | `break.campaign` | `BREAK_CAMPAIGN` | — | `1`: bayi kapsamlı kampanya kırılması |
+| `tp.fault` | `TP_FAULT` | — | Ekilmiş hata kodu (`^[a-z0-9_]{1,40}$`, demo API `faults.py`): bayi kapsamlı `/test/break {hata}`; `BREAK_CAMPAIGN` ile birlikteyse bu geçerlidir |
 | `tp.e2e.no.reset` | `TP_E2E_NO_RESET` | — | `1` + token yok: yalnızca sepet yalıtımı |
 | `bekleme.ms` | `BEKLEME_MS` | `10000` | eylem/beklenti üst sınırı |
 | `bayi.kilit.ms` | `BAYI_KILIT_MS` | `40000` | bayi kilidi bekleme |
@@ -84,7 +116,7 @@ testin kanıtı `target/kanit/<Sınıf>.<metot>/{ekran.png,sayfa-kaynagi.xml}` (
   üstünde kısa bir sürükleme.
 - **Uygulama sıfırlama**: her test yeni Appium oturumu (`noReset=false`); oturum taşınmaz.
 - **Hazırlık testin içinde** (`TestTabani` TestNG `IHookable`): bayi kilidi → `/test/reset` (ya da
-  sepet boşaltma) → `BREAK_CAMPAIGN` ise `/test/break` → oturum → `@OturumAcik` ise arayüzden giriş →
+  sepet boşaltma) → `TP_FAULT` ya da `BREAK_CAMPAIGN` ise `/test/break` → oturum → `@OturumAcik` ise arayüzden giriş →
   `hazirlikSonrasi()`. Hazırlık hatası testin kendi hatasıdır; JUnit XML'de test başına tek satır.
 - **Bayi**: varsayılan `bayi1`; `@Bayi("bayi2")` sınıfı sabitler (web `test.use({ dealerUsername })`).
   `bayi3` doğrulama ajanınındır, e2e'ye kapalıdır. Aynı demo API'ye karşı koşan Java süreçleri (ör.
