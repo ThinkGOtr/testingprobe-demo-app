@@ -25,7 +25,9 @@ run-name: >-
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    # labeled/unlabeled YOK: bot etiketleri (AI-generated, tp-codegen, TPD-x) yeni koşu açıp
+    # concurrency ile başarılı koşuyu iptal ediyordu; zorunlu check'ler eksik/iptal görünüyordu.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   schedule:
@@ -281,7 +283,7 @@ jobs:
             '{schema_version: 1, job: $job, platform: $platform, sha: $sha, tetik: $tetik,
               istek_id: (if $istek == "" then null else $istek end), durum: $durum,
               adim_sonucu: $sonuc}' > "$out/ci-meta.json"
-          n="$(find "$out/surefire-reports" -name 'TEST-*.xml' 2>/dev/null | wc -l | tr -d ' ')"
+          n="$({ find "$out/surefire-reports" -name 'TEST-*.xml' 2>/dev/null || true; } | wc -l | tr -d ' ')"
           {
             echo "### masaustu-windows (tetik: \`$TP_TRIGGER\`)"
             echo "Durum: **$durum** · JUnit XML: $n dosya · commit \`${SHA:0:12}\`"
