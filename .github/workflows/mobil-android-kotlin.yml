@@ -111,7 +111,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
 
       - name: Node (hazırlık betiği için; isteğe bağlı)
         if: env.RUN_TESTS == 'true' && env.TP_NODE_SURUMU != ''
@@ -125,6 +124,18 @@ jobs:
         run: |
           set -o pipefail
           bash "$TP_HAZIRLIK_BETIGI" 2>&1 | tee -a "$TP_RESULTS/derleme.log"
+
+      # Gradle önbelleği hazırlıktan SONRA: yerel proje hazırlık betiğinde üretilebilir (Expo/RN
+      # prebuild); setup-java `cache: gradle` checkout anında Gradle dosyası bulamazsa düşer.
+      - name: Gradle önbelleği
+        if: env.RUN_TESTS == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: tp-gradle-${{ runner.os }}-${{ hashFiles(format('{0}/**/*.gradle*', env.TP_UYGULAMA_KOKU), format('{0}/**/gradle-wrapper.properties', env.TP_UYGULAMA_KOKU)) }}
+          restore-keys: tp-gradle-${{ runner.os }}-
 
       - name: Derle (uygulama + androidTest APK)
         id: derle
