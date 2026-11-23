@@ -68,6 +68,31 @@ public class TabanTests
     }
 
     [Test]
+    public void KosuParolaAdiVeSeedYedegi()
+    {
+        Assert.That(Bayiler.KosuParolaAdi("bayi1"), Is.EqualTo("TP_TESTVERI_KOSU_BAYI1"));
+        Assert.That(Bayiler.KosuParolaAdi("test.k-2"), Is.EqualTo("TP_TESTVERI_KOSU_TEST_K_2"));
+        Assert.That(Bayiler.KosuParolaAdi(new string('x', 60)), Is.Null);
+        Assert.That(Bayiler.KosuParolasiAdla("TP_TESTVERI_KOSU_BAYI1"), Is.EqualTo(Bayiler.Sec("bayi1", 0).Parola));
+        Assert.That(Bayiler.KosuParolasiAdla("TP_TESTVERI_KOSU_YOK"), Is.Null);
+    }
+
+    [Test]
+    public void KosuParolasi()
+    {
+        Assert.That(Bayiler.KosuParolalari(null), Is.Empty);
+        Assert.That(Bayiler.KosuParolalari(" "), Is.Empty);
+        var p = Bayiler.KosuParolalari("{\"bayi2\": \"Bayi2 özel!\", \"bos\": \"\", \"sayi\": 1}");
+        Assert.That(p, Is.EquivalentTo(new System.Collections.Generic.Dictionary<string, string> { ["bayi2"] = "Bayi2 özel!" }));
+        var b2 = Bayiler.E2E[1];
+        Assert.That(Bayiler.KosuParolasiyla(b2, p).Parola, Is.EqualTo("Bayi2 özel!"));
+        Assert.That(Bayiler.KosuParolasiyla(b2, p).Ad, Is.EqualTo(b2.Ad));
+        Assert.That(Bayiler.KosuParolasiyla(Bayiler.E2E[0], p), Is.SameAs(Bayiler.E2E[0]));
+        Assert.Throws<ArgumentException>(() => Bayiler.KosuParolalari("{x"));
+        Assert.Throws<ArgumentException>(() => Bayiler.KosuParolalari("[\"a\"]"));
+    }
+
+    [Test]
     public void BayiOzniteligiSinifBayisiniSabitler()
     {
         Assert.That(Bayiler.SinifIcin(typeof(TPD1WebC2_3f9b1c2eTests), 1).KullaniciAdi, Is.EqualTo("bayi1"));
