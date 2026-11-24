@@ -6,6 +6,6 @@ export const catalog = {
   productCard: { testId: "product-card-", role: "article", name: "", intent: "Tek bir ürünün kartı" },
   productPrice: { testId: "product-price-", role: "paragraph", name: "", intent: "Ürün kartındaki birim fiyat" },
   quantityInput: { testId: "qty-input-", role: "spinbutton", name: "Adet", within: "product-card-", intent: "Ürün kartında eklenecek adet alanı" },
-  addToCart: { testId: "cart-add", role: "button", name: "Sepete ekle", within: "product-card-", intent: "Ürün kartında sepete ekleme butonu" },
+  addToCart: { testId: "add-to-cart", role: "button", name: "Sepete ekle", within: "product-card-", intent: "Ürün kartında sepete ekleme butonu" },
   addStatus: { testId: "product-status-", role: "status", name: "", intent: "Sepete ekleme sonrası ürün kartındaki bilgi mesajı" },
 } as const;
