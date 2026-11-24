@@ -62,7 +62,7 @@ public static class Kimlikler
             /// <summary>Ürün kartında eklenecek adet alanı.</summary>
             public const string QUANTITY_INPUT_ONEK = "qty-input-";
             /// <summary>Ürün kartında sepete ekleme butonu.</summary>
-            public const string ADD_TO_CART = "cart-add";
+            public const string ADD_TO_CART = "add-to-cart";
         }
     }
 

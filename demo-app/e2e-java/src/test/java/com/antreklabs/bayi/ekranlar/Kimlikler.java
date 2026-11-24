@@ -63,7 +63,7 @@ public final class Kimlikler {
       /** Ürün kartında eklenecek adet alanı. */
       public static final String QUANTITY_INPUT_ONEK = "qty-input-";
       /** Ürün kartında sepete ekleme butonu. */
-      public static final String ADD_TO_CART = "cart-add";
+      public static final String ADD_TO_CART = "add-to-cart";
     }
   }
 
